@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Button } from "react-native";
 import { db } from "../database/firebaseconfig.js";
 import { collection, getDocs, deleteDoc, doc, addDoc, updateDoc } from "firebase/firestore";
 import ListaProductos from "../components/ListaProductos.js";
 import FormularioProductos from "../components/FormularioProductos.js";
 import TablaProductos from "../components/TablaProductos";
+import { signOut } from "firebase/auth";
+import { auth } from "../database/firebaseconfig"; // Ajusta la ruta según tu estructura
 
 const Productos = () => {
   const [modoEdicion, setModoEdicion] = useState(false);
@@ -53,6 +55,16 @@ const Productos = () => {
       [nombre]: valor,
     }));
   };
+
+  const cerrarSesion = async () => {
+  try {
+    await signOut(auth); // Cierra la sesión del usuario
+    console.log("Sesión cerrada correctamente.");
+  } catch (error) {
+    console.error("Error al cerrar sesión:", error);
+  }
+};
+
 
   const guardarProducto = async () => {
     try {
@@ -109,6 +121,7 @@ const Productos = () => {
         guardarProducto={guardarProducto}
         actualizarProducto={actualizarProducto}
         modoEdicion={modoEdicion}
+        cerrarSesion={cerrarSesion}
       />
 
       <ListaProductos productos={productos} />
@@ -118,6 +131,8 @@ const Productos = () => {
         eliminarProducto={eliminarProducto}
         editarProducto={editarProducto}
       />
+
+      <Button title="Cerrar Sesión" onPress={cerrarSesion} />
     </View>
   );
 };
