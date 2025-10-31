@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { View } from "react-native";
+import { View, Button } from "react-native";
 import { auth } from "./src/database/firebaseconfig";
 import Login from "./src/views/Login";
 import Productos from "./src/views/Productos";
@@ -28,7 +28,7 @@ export default function App() {
   // Si hay usuario autenticado, mostrar productos
   return (
     <View style={{ flex: 1 }}>
-      <Productos cerrarSesion={cerrarSesion} />
+      <Productos cerrarSesion={cerrarSesion}/>
     </View>
   );
 }
