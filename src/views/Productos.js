@@ -4,11 +4,16 @@ import { db } from "../database/firebaseconfig.js";
 import { collection, getDocs, doc, deleteDoc, addDoc, updateDoc, QuerySnapshot, orderBy, limit, query, where } from "firebase/firestore";
 import FormularioProductos from "../components/FormularioProductos";
 import TablaProductos from "../components/TablaProductos.js";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
+import * as Clipboard from "expo-clipboard";
+
 
 const Productos = ({cerrarSesion}) => {
 
   const [modoEdicion, setModoEdicion] = useState(false);
   const [productoId, setProductoId] = useState(null);
+  const colecciones = ["productos", "clientes", "edades", "ciudades"];
 
   const [productos, setProductos] = useState([]);
 
@@ -16,6 +21,7 @@ const Productos = ({cerrarSesion}) => {
     nombre: "",
     precio: "",
   });
+  
 
   const manejoCambio = (nombre, valor) => {
     setNuevoProducto((prev) => ({
@@ -24,6 +30,7 @@ const Productos = ({cerrarSesion}) => {
     }));
   };
 
+  
   
   const guardarProducto = async () => {
     try {
@@ -39,6 +46,24 @@ const Productos = ({cerrarSesion}) => {
       }
     } catch (error) {
       console.error("Error al registrar producto:", error);
+    }
+  };
+
+  
+  //Nuevas importaciones 
+const cargarDatosFirebaseCompletos = async () => {
+  try {
+    const datosExportados = {};
+      for (const col of colecciones) {
+      const snapshot = await getDocs(collection(db, col));
+      datosExportados[col] = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+  }));
+  }
+    return datosExportados;
+  }   catch (error) {
+    console.error("Error extrayendo datos: ", error);
     }
   };
 
@@ -60,6 +85,47 @@ const Productos = ({cerrarSesion}) => {
       console.error("Error al actualizar producto:", error);
     }
   };
+
+  //Segunda importación
+  const exportarDatos = async () => {
+  try {
+    const datos = await cargarDatosFirebaseCompletos();
+    console.log("Datos cargados:", datos);
+
+    // Formatea los datos para el archivo y el portapapeles
+    const jsonString = JSON.stringify(datos, null, 2);
+
+    const baseFileName = "datos_firebase.txt";
+
+    // Copiar datos al portapapeles
+    await Clipboard.setStringAsync(jsonString);
+    console.log("Datos (JSON) copiados al portapapeles.");
+
+    // Verificar si la función de compartir está disponible
+    if (!(await Sharing.isAvailableAsync())) {
+      alert("La función Compartir/Guardar no está disponible en tu dispositivo");
+      return;
+    }
+
+    // Guardar el archivo temporalmente
+    const fileUri = FileSystem.cacheDirectory + baseFileName;
+
+    // Escribir el contenido JSON en el caché temporal
+    await FileSystem.writeAsStringAsync(fileUri, jsonString);
+
+    // Abrir el diálogo de compartir
+    await Sharing.shareAsync(fileUri, {
+      mimeType: 'text/plain',
+      dialogTitle: 'Compartir datos de Firebase (JSON)'
+    });
+
+    alert("Datos copiados al portapapeles y listos para compartir.");
+  } catch (error) {
+    console.error("Error al exportar y compartir:", error);
+    alert("Error al exportar o compartir: " + error.message);
+  }
+};
+
 
   const cargarDatos = async () => {
     try {
@@ -271,6 +337,14 @@ const pruebaConsulta7 = async () => {
     <View style={styles.container}>
 
       <Button title="Cerrar Sesión"  onPress={cerrarSesion} />
+      <View style={{ marginVertical: 10 }}>
+        <Button title="Exportar" onPress={exportarDatos} />
+      </View>
+
+      <View style={{ marginVertical: 10 }}>
+        <Button title="Exportar Todo" onPress={exportarDatos} />
+      </View>
+
 
       <FormularioProductos
         nuevoProducto={nuevoProducto}
