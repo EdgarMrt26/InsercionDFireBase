@@ -158,6 +158,128 @@ const cargarDatosFirebaseCompletos = async () => {
     setModoEdicion(true);
   };
 
+
+  //Lógica del excel
+  const arrayBufferToBase64 = (buffer) => {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+};
+
+//Segunda parte
+const generarExcel = async () => {
+  try {
+    const datosParaExcel = [
+      { nombre: "Producto A", categoria: "Electrónicos", precio: 100 },
+      { nombre: "Producto B", categoria: "Ropa", precio: 50 },
+      { nombre: "Producto C", categoria: "Electrónicos", precio: 75 }
+    ];
+
+    const response = await fetch('https://9qxzhrsnvg.execute-api.us-east-1.amazonaws.com/generarexcel', {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ datos: datosParaExcel }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+
+    // Obtencion de ArrayBuffer y conversion a base64
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = arrayBufferToBase64(arrayBuffer);
+
+    // Ruta para guardar el archivo temporal
+    const fileUri = FileSystem.documentDirectory + "reporte.xlsx";
+
+    // Escribir el archivo en el sistema de archivos
+    await FileSystem.writeAsStringAsync(fileUri, base64, {
+      encoding: FileSystem.EncodingType.Base64
+    });
+
+    // Compartir el archivo generado
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        dialogTitle: 'Descargar Reporte Excel'
+      });
+    } else {
+      alert("Compartir no disponible. Revisa la consola para logs.");
+    }
+  } catch (error) {
+    console.error("Error generando Excel:", error);
+    alert("Error: " + error.message);
+  }
+};
+
+// Prueba ya sin datos estáticos
+const cargarCiudadesFirebase = async () => {
+  try {
+    const snapshot = await getDocs(collection(db, "ciudades"));
+    const ciudades = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    return ciudades;
+  } catch (error) {
+    console.error("Error extrayendo ciudades:", error);
+    return [];
+  }
+};
+
+//Segundo generador de excel 
+const generarExcelDos = async () => {
+  try {
+    // Obtener solo datos de "ciudades"
+    const ciudades = await cargarCiudadesFirebase();
+    if (ciudades.length === 0) {
+      throw new Error("No hay datos en la colección 'ciudades'.");
+    }
+
+    console.log("Ciudades para Excel:", ciudades);
+    const response = await fetch('https://v15dwab3ve.execute-api.us-east-1.amazonaws.com/generarexcel', {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ datos: ciudades })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+
+    // Obtencion de ArrayBuffer y conversion a base64
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = arrayBufferToBase64(arrayBuffer);
+
+    // Ruta para guardar el archivo temporalmente
+    const fileUri = FileSystem.documentDirectory + "reporte_ciudades.xlsx";
+
+    // Escribir el archivo Excel
+    await FileSystem.writeAsStringAsync(fileUri, base64, {
+      encoding: FileSystem.EncodingType.Base64
+    });
+
+    // Compartir
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        dialogTitle: 'Descargar Reporte de Ciudades'
+      });
+    } else {
+      alert("Compartir no disponible.");
+    }
+
+    alert("Excel de ciudades generado y listo para descargar!");
+  } catch (error) {
+    console.error("Error generando Excel:", error);
+    alert("Error: " + error.message);
+  }
+};
+
   const pruebaConsulta1 = async () => {
   try {
     const q = query(
@@ -336,6 +458,22 @@ const pruebaConsulta7 = async () => {
   return (
     <View style={styles.container}>
 
+      <FormularioProductos
+        nuevoProducto={nuevoProducto}
+        manejoCambio={manejoCambio}
+        guardarProducto={guardarProducto}
+        actualizarProducto={actualizarProducto}
+        modoEdicion={modoEdicion}
+      />
+
+      
+      
+      <TablaProductos 
+        productos={productos}
+        editarProducto={editarProducto} 
+        eliminarProducto={eliminarProducto}
+      />
+
       <Button title="Cerrar Sesión"  onPress={cerrarSesion} />
       <View style={{ marginVertical: 10 }}>
         <Button title="Exportar" onPress={exportarDatos} />
@@ -345,20 +483,13 @@ const pruebaConsulta7 = async () => {
         <Button title="Exportar Todo" onPress={exportarDatos} />
       </View>
 
+      <View style={{ marginVertical: 10 }}>
+        <Button title="Generar Excel" onPress={generarExcel} />
+      </View>
 
-      <FormularioProductos
-        nuevoProducto={nuevoProducto}
-        manejoCambio={manejoCambio}
-        guardarProducto={guardarProducto}
-        actualizarProducto={actualizarProducto}
-        modoEdicion={modoEdicion}
-      />
-      
-      <TablaProductos 
-        productos={productos}
-        editarProducto={editarProducto} 
-        eliminarProducto={eliminarProducto}
-      />
+      <View style={{ marginVertical: 10 }}>
+        <Button title="Generar Excel2" onPress={generarExcelDos} />
+      </View>
       
     </View>
   );
