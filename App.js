@@ -30,7 +30,7 @@ export default function App() {
   // Si hay usuario autenticado, mostrar productos
   return (
     <View style={{ flex: 1 }}>
-      <CalculoIMC cerrarSesion={cerrarSesion}/>
+      <Productos cerrarSesion={cerrarSesion}/>
     </View>
   );
 }
