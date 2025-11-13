@@ -119,6 +119,75 @@ const Productos = ({cerrarSesion}) => {
   }
 };
 
+//Importación de extraer Excel nueva.
+  const extraerYGuardarBicicletas = async () => {
+  try {
+    // Abrir selector de documentos para elegir archivo Excel
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'],
+      copyToCacheDirectory: true,
+    });
+    if (result.cancelled || !result.assets || result.assets.length === 0) {
+      Alert.alert("Cancelado", "No se seleccionó ningún archivo.");
+      return;
+    }
+    const { uri, name } = result.assets[0];
+    console.log(`Archivo seleccionado: ${name} en ${uri}`);
+    // Leer el archivo como base64
+    const base64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    // Enviar a Lambda para procesar
+    const response = await fetch('https://ouu45b2h18.execute-api.us-east-1.amazonaws.com/extraerexcel', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ archivoBase64: base64 }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP en Lambda: ${response.status}`);
+    }
+    const body = await response.json();
+    if (!body.datos || !Array.isArray(body.datos) || body.datos.length === 0) {
+      Alert.alert("Error", "No se encontraron datos en el Excel o el archivo esta vacio.");
+      return;
+    }
+    console.log("Datos extraidos del Excel:", body.datos);
+    // Guardar cada fila en la coleccion 'mascotas'
+    let errores = 0;
+    for (const bicicleta of body.datos) {
+      try {
+        // Columnas: 'nombre', 'edad', 'raza' (ajusta si los headers son diferentes)
+        await addDoc(collection(db, "bicicletas"), {
+          marca: bicicleta.marca || '',
+          modelo: bicicleta.modelo || '',
+          precio: parseInt(bicicleta.precio) || 0,
+          color: bicicleta.color || ''
+        });
+      } catch (err) {
+        console.error("Error guardando bicicleta:", bicicleta, err);
+        errores++;
+      }
+    }
+    const guardados = body.datos.length - errores; // Calculamos los guardados exitosos
+    if (errores > 0) {
+      Alert.alert(
+        "Éxito",
+        `Se guardaron ${guardados} bicicletas en la colección. Errores: ${errores}.`,
+        [{ text: "OK" }]
+      );
+    } else {
+      Alert.alert("Éxito", `Se guardaron todas las ${guardados} bicicletas en la colección.`);
+    }
+
+  } catch (error) {
+    console.error("Error en extraerYGuardarBicicletas:", error);
+    Alert.alert("Error", "Error procesando el Excel: " + error.message);
+  }
+};
+
   
   //Nuevas importaciones 
 const cargarDatosFirebaseCompletos = async () => {
@@ -563,6 +632,10 @@ const pruebaConsulta7 = async () => {
 
       <View style={{ marginVertical: 10 }}>
         <Button title="Extraer Mascotas desde Excel" onPress={extraerYGuardarMascotas} />
+      </View>
+
+      <View style={{ marginVertical: 10 }}>
+        <Button title="Extraer Bicicletas desde Excel" onPress={extraerYGuardarBicicletas} />
       </View>
       
     </View>
